@@ -1,0 +1,195 @@
+---
+title: "DS 202 Lab 3"
+author: "Kerstin Swanson"
+date: "3/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part One
+
+```{r, warning=FALSE}
+library(ggplot2)
+library(tidyverse)
+dat <- readxl::read_xls('GSS.xls')
+dat <- dat %>% 
+  rename(happy = `General happiness`, relig = `Rs religious preference`, sex = `Respondents sex`, school = `Highest year of school completed`, usa_born = `Was r born in this country`, divorce = `Ever been divorced or separated`, party = `Political party affiliation`, marriage = `Marital status`)
+str(dat)
+dat <- dat %>% 
+  select(happy, sex, party, relig, marriage, divorce, school, usa_born)
+dat$school <- as.numeric(dat$school)
+```
+
+## Part Two
+
+1. Find the average years of education for the respondents with each marital status. Arrange your output in a meaningful order and print. Describe any patterns you find.
+
+```{r}
+dat %>% 
+  drop_na() %>% 
+  group_by(marriage) %>% 
+  summarize(mean_school = mean(school, na.rm = TRUE)) %>% 
+  arrange(desc(mean_school))
+
+dat %>% 
+  drop_na() %>% 
+  group_by(marriage) %>% 
+  summarize(mean_school = mean(school, na.rm = TRUE)) %>% 
+  ggplot(aes(x=reorder(marriage, mean_school), weight=mean_school))+geom_bar(aes(fill=marriage), show.legend = FALSE) + coord_flip() + labs(title = "Education and Marital Status", x = "Marriage Status", y = "Average Years of Education")
+```
+
+
+Here, we can see that respondents who had no answer for their marriage status had the highest average years of education, and those that were widowed had the lowest average years of education. It seems that people who are not currently legally married, meaning that they are divorced or never married, have more education than those that are separated or married.
+
+
+
+
+2. Create a single data frame containing records for the better educated respondents with each marital status. A “better educated” respondent is someone who has strictly more years of education than the average among those with the same marital status. Print the structure of the data frame.
+
+```{r}
+better_ed <- dat %>% 
+  group_by(marriage) %>% 
+  filter(school > mean(school, na.rm = TRUE)) 
+str(better_ed)
+```
+
+
+
+
+
+
+
+3. How is the happiness of a respondent related to his/her marriage status? Define that a person is happy if the response to question is “Very happy” or “Pretty happy”.
+
+
+```{r, message=FALSE}
+dat %>% 
+  group_by(marriage) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  arrange(prop_happy) %>% 
+  distinct
+  
+dat %>% 
+  group_by(marriage) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  distinct %>% 
+  ggplot(aes(x= reorder(marriage, prop_happy), weight= prop_happy))+geom_bar(aes( fill=marriage), show.legend = FALSE) + coord_flip() + labs(title = "Happiness and Marital Status", x = "Marriage Status", y = "Proportion Happy")
+```
+
+
+
+To deal with the uneven sample sizes, I divided the number of happy people in each marital status by the total number of people in that marital status to get the percentage of happiness in each marriage status. We can see that over 85% of married people are happy. The people with no answer to marital status had the lowest percent happiness around 60%. Widowed people had higher percentages of happiness than those separated or divorced. 
+
+
+4. Does party affiliation affect the relationship you found in the last question?
+
+```{r, message=FALSE}
+dat %>% 
+  group_by(marriage, party) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  arrange(prop_happy) %>% 
+  distinct
+  
+dat %>% 
+  group_by(marriage, party) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  distinct %>% 
+  ggplot(aes(x= reorder(marriage, prop_happy), weight= prop_happy))+geom_bar(aes( fill=marriage), show.legend = FALSE) + coord_flip() + labs(title = "Happiness and Marital Status by Political Party", x = "Marriage Status", y = "Proportion Happy") +facet_wrap(~party)
+```
+
+
+
+It looks like for all political parties besides "Other", married people still have the highest percentage of happiness. People that have never been married have highest happiness percentage in the strong republican party and the not strong republican party. Divorcees in not strong republican party and independent, near republican party have the highest happiness percentages among the divorce group. People in the "other" party have the most happiness among those who did not answer as to their marriage status.
+
+
+
+5. How is marital status related to the education of a respondent? What are possible reasons accounting for the patterns you see?
+
+```{r}
+dat %>% 
+  drop_na() %>% 
+  group_by(marriage) %>% 
+  summarize(median_ed = median(school), st_dev = sd(school)) %>% 
+  arrange(median_ed)
+dat %>% 
+  drop_na() %>% 
+  ggplot(aes(x=school, y=marriage, fill=marriage)) + geom_boxplot(show.legend=FALSE) + labs(title="Education and Marital Status", x="Marital Status", y="Years of Education")
+```
+
+
+Here, we can see that married people have the lowest median years of education, followed by those that are separated and widowed. We can also see that those that are widowed have the highest variability in their education (they have the highest standard deviation), and those that did not answer and were never married have the smallest standard deviation. Divorcees have the smallest IQR. All of the marital groups have outliers except no answer. 
+People with the highest median years of education are those with no answer and those that are never married. This might be because they have more time to spend on education, whereas those married (or were married at one point) have to take time for family, which could have shortened their education.
+
+
+6. Explore two more interesting questions, and answer those questions using the GSS data.
+
+Question 1: How does religious affiliation affect a respondent's happiness?
+
+```{r, message=FALSE}
+dat %>% 
+  group_by(relig) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  arrange(prop_happy) %>% 
+  distinct
+  
+dat %>% 
+  group_by(relig) %>% 
+  mutate(total_count = n()) %>% 
+  filter(happy %in% c("Very happy", "Pretty happy")) %>% 
+  summarize(count = n(), prop_happy = count/total_count) %>% 
+  distinct %>% 
+  ggplot(aes(x= reorder(relig, prop_happy), weight= prop_happy))+geom_bar(aes(fill=relig), show.legend = FALSE) + coord_flip() + labs(title = "Happiness and Religious Affiliation", x = "Religious Affiliation", y = "Proportion Happy")
+```
+
+
+I duplicated my steps in question 3, where I filtered for "very happy" and "pretty happy" within each religious group, and then divided by the total amount of observations in each group to find the proportion of people that are happy.
+Due to the statistical summary and plot above, we can see that those that are Hindu, Protestant, and Catholic have the highest percent happiness, over 80%. Other eastern religion had the lowest happiness percentage of 60%, followed by Orthodox Christians.
+
+
+
+
+
+
+Question 2: How does religious affiliation affect the divorce rate?
+
+
+```{r, message=FALSE}
+dat %>% 
+  drop_na() %>% 
+  group_by(relig) %>% 
+  mutate(total = n()) %>% 
+  filter(divorce =="Yes") %>% 
+  summarize(count=n(), prop_divorce = count/total) %>% 
+  arrange(desc(prop_divorce)) %>% 
+  distinct
+
+
+dat %>% 
+  drop_na() %>% 
+  group_by(relig) %>% 
+  mutate(total = n()) %>% 
+  filter(divorce =="Yes") %>% 
+  summarize(count=n(), prop_divorce = count/total) %>% 
+  arrange(desc(prop_divorce)) %>% 
+  distinct %>%  
+  ggplot(aes(x= reorder(relig, prop_divorce), weight= prop_divorce))+geom_bar(aes(fill=relig), show.legend = FALSE) + coord_flip() + labs(title = "Divorce and Religious Affiliation", x = "Religious Affiliation", y = "Proportion Divorced")
+  
+```
+
+
+Based on our summary statistics and our graph, we can see that the religion with the highest percentage of divorcees are Protestant, with slightly over 15% of people being divorced. By far, Hinduism has the lowest percentage of divorce at less than 2.5%. It is not surprising to me that other religions with low divorce percentages are orthodox christian, Catholicism, and Islam.
+
+
